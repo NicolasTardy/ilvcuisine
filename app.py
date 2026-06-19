@@ -20,7 +20,6 @@ PORT = int(os.environ.get("PORT", "8770"))
 CUISINE_OFFERS = {
     "10x_grat": {"label": "10X gratuit cuisine",  "fam": "gratuit",  "duree": 10, "min": 160,  "max": 25000},
     "12x_grat": {"label": "12X gratuit cuisine",  "fam": "gratuit",  "duree": 12, "min": 200,  "max": 25000},
-    "20x_grat": {"label": "20X gratuit cuisine",  "fam": "gratuit",  "duree": 20, "min": 2000, "max": 25000},
     "12x_comp": {"label": "12X compensé cuisine", "fam": "compense", "duree": 12, "min": 1000, "max": 25000},
     "24x_comp": {"label": "24X compensé cuisine", "fam": "compense", "duree": 24, "min": 1000, "max": 25000},
     "36x_comp": {"label": "36X compensé cuisine", "fam": "compense", "duree": 36, "min": 1000, "max": 25000},
@@ -29,7 +28,7 @@ CUISINE_OFFERS = {
 }
 TAEG_CLIENT_COMPENSE = 0.049  # 4,90 % (compensé : le magasin compense le reste)
 # Barème gratuit (gamme) : (taux débiteur TNC, TAEG) → détail du coût pris en charge
-GAMME_GRAT = {"10x_grat": (0.0443, 0.0452), "12x_grat": (0.0375, 0.03815), "20x_grat": (0.0531, 0.05441)}
+GAMME_GRAT = {"10x_grat": (0.0443, 0.0452), "12x_grat": (0.0375, 0.03815)}
 DATE_CONDITIONS = "01/01/2026"
 
 # ── Assurance facultative DIM (repris du barème EASY PLV) ──────────────────────
