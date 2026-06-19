@@ -162,35 +162,42 @@ def render_cuisine(desig, precision, montant, offer_key):
     p.draw_rect(fitz.Rect(8, 8, W - 8, H - 8), color=(0.85, 0.85, 0.85), width=1)
     bw = 215; bh = bw / _aspect(os.path.join(ASSETS, "bandeau.png"))
     p.insert_image(fitz.Rect(28, 24, 28 + bw, 24 + bh), filename=os.path.join(ASSETS, "bandeau.png"))
-    T(28, 108, desig.upper(), 15)
-    T(452 - _font.text_length(_e(montant) + " €", 15), 108, _e(montant) + " €", 15, RED)
+    T(28, 120, desig.upper(), 17)
+    T(452 - _font.text_length(_e(montant) + " €", 17), 120, _e(montant) + " €", 17, RED)
     if precision:
-        T(28, 128, precision, 9.5, GREY)
+        T(28, 144, precision, 10.5, GREY)
     # Mensualité (très gros, centré)
     mensu = c["mensu"]; mstr = f"{int(mensu)}"; cstr = "," + f"{int(round((mensu - int(mensu)) * 100)):02d}"
-    S = 78; SC = 32
+    S = 108; SC = 44
     iw = _font.text_length(mstr, S); cw = _font.text_length(cstr, SC)
-    xmois = "x " + str(d) + " mois"; xw = _font.text_length(xmois, 26)
-    x0 = (W - (iw + cw + 28 + xw)) / 2; base = 228
+    xmois = "x " + str(d) + " mois"; xw = _font.text_length(xmois, 33)
+    x0 = (W - (iw + cw + 32 + xw)) / 2; base = 296
     T(x0, base, mstr, S)
-    T(x0 + iw + 3, base - 34, cstr, SC)
-    T(x0 + iw + 3, base, "€", SC)
-    T(x0 + iw + cw + 28, base - 24, xmois, 26)
-    T(28, 258, "Montant total dû : " + _e(c["total"]) + " €", 12)
-    T(28, 281, "TAEG Fixe : " + c["taeg"], 12)
+    T(x0 + iw + 4, base - 48, cstr, SC)
+    T(x0 + iw + 4, base, "€", SC)
+    T(x0 + iw + cw + 32, base - 33, xmois, 33)
+    T(28, 356, "Montant total dû : " + _e(c["total"]) + " €", 14.5)
+    T(28, 384, "TAEG Fixe : " + c["taeg"], 14.5)
     note = ("Offre " + o["label"] + " — coût pris en charge par le magasin" if c["fam"] == "gratuit"
             else "Offre " + o["label"] + " — taux client compensé par le magasin")
-    T(28, 300, note, 8.5, GREY)
+    T(28, 406, note, 9.5, GREY)
     # Avertissement (centré)
-    aw = 300; ah = aw / _aspect(os.path.join(ASSETS, "avertissement.png")); ax = (W - aw) / 2
-    p.insert_image(fitz.Rect(ax, 318, ax + aw, 318 + ah), filename=os.path.join(ASSETS, "avertissement.png"))
-    # Mentions légales
-    my = 318 + ah + 8
-    p.insert_textbox(fitz.Rect(28, my, 452, H - 58), mentions_cuisine(offer_key, montant, c),
-                     fontsize=5.7, fontfile=FONT_PATH, fontname="archivo", color=(0.32, 0.32, 0.32), align=3)
-    # Pied de page
-    fw = W - 56; fh = fw / _aspect(os.path.join(ASSETS, "pied.png")); fy = H - fh - 16
+    aw = 322; ah = aw / _aspect(os.path.join(ASSETS, "avertissement.png")); ax = (W - aw) / 2
+    p.insert_image(fitz.Rect(ax, 424, ax + aw, 424 + ah), filename=os.path.join(ASSETS, "avertissement.png"))
+    # Pied de page (en bas)
+    fw = W - 56; fh = fw / _aspect(os.path.join(ASSETS, "pied.png")); fy = H - fh - 18
     p.insert_image(fitz.Rect(28, fy, 28 + fw, fy + fh), filename=os.path.join(ASSETS, "pied.png"))
+    # Mentions légales — police auto-ajustée pour remplir la zone entre l'avertissement et le pied
+    mtxt = mentions_cuisine(offer_key, montant, c)
+    mrect = fitz.Rect(28, 424 + ah + 12, 452, fy - 10)
+    mfs = 5.7
+    for fs in (8.5, 8, 7.6, 7.2, 6.9, 6.6, 6.3, 6.0, 5.7):
+        _tmp = fitz.open(); _lo = _tmp.new_page(width=W, height=H).insert_textbox(
+            mrect, mtxt, fontsize=fs, fontfile=FONT_PATH, fontname="archivo"); _tmp.close()
+        if _lo >= 0:
+            mfs = fs; break
+    p.insert_textbox(mrect, mtxt, fontsize=mfs, fontfile=FONT_PATH, fontname="archivo",
+                     color=(0.3, 0.3, 0.3), align=3)
     return doc
 
 
