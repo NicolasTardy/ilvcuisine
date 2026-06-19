@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ILV Cuisine — BUT / Cetelem</title>
+<style>
+  :root { --teal:#00a0b0; --bg:#15171a; --panel:#22262b; --line:#333; }
+  * { box-sizing:border-box; }
+  body { font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:#eaeaea; margin:0; }
+  header { background:var(--teal); color:#fff; padding:14px 24px; font-size:18px; font-weight:700; letter-spacing:.3px; }
+  .wrap { display:flex; gap:22px; padding:22px; align-items:flex-start; flex-wrap:wrap; }
+  .panel { background:var(--panel); border-radius:12px; padding:20px; }
+  .form { min-width:300px; flex:0 0 320px; }
+  label { display:block; margin:14px 0 5px; font-size:12px; color:#9aa3ab; text-transform:uppercase; letter-spacing:.4px; }
+  input, select { width:100%; padding:9px 10px; border-radius:7px; border:1px solid var(--line); background:#15171a; color:#fff; font-size:14px; }
+  select { cursor:pointer; }
+  .row2 { display:flex; gap:10px; }
+  button { margin-top:18px; width:100%; padding:11px; background:var(--teal); color:#fff; border:0; border-radius:7px; font-size:15px; font-weight:600; cursor:pointer; }
+  button.ghost { background:transparent; border:1px solid var(--teal); color:var(--teal); margin-top:10px; }
+  .preview { flex:1 1 420px; min-height:300px; display:flex; align-items:flex-start; justify-content:center; }
+  .preview img { max-width:540px; width:100%; border-radius:10px; box-shadow:0 8px 40px rgba(0,0,0,.55); background:#fff; }
+  .hint { font-size:11px; color:#6b727a; margin-top:14px; line-height:1.5; }
+  .muted { color:#8a9199; }
+</style>
+</head>
+<body>
+<header>🍳 ILV Cuisine — projets cuisine BUT / Cetelem</header>
+<div class="wrap">
+  <div class="panel form">
+    <label>Désignation du projet</label>
+    <input id="desig" value="CUISINE ÉQUIPÉE MODÈLE OSLO">
+    <label>Précision (optionnel)</label>
+    <input id="prec" value="Ensemble cuisine + électroménager intégré">
+    <label>Montant du projet (€)</label>
+    <input id="montant" type="number" min="0" step="10" value="5000">
+    <label>Offre cuisine</label>
+    <select id="offer">
+      <optgroup label="Gratuit (0 %)">
+        <option value="10x_grat">10× gratuit cuisine</option>
+        <option value="12x_grat">12× gratuit cuisine</option>
+        <option value="20x_grat">20× gratuit cuisine</option>
+      </optgroup>
+      <optgroup label="Compensé (TAEG client 4,90 %)">
+        <option value="12x_comp">12× compensé cuisine</option>
+        <option value="24x_comp">24× compensé cuisine</option>
+        <option value="36x_comp">36× compensé cuisine</option>
+        <option value="48x_comp">48× compensé cuisine</option>
+        <option value="60x_comp">60× compensé cuisine</option>
+      </optgroup>
+    </select>
+    <button onclick="gen()">Générer l'ILV</button>
+    <button class="ghost" onclick="dl()">⬇ Télécharger le PDF</button>
+    <div class="hint">
+      <span class="muted">Barème EASY PLV BUT.</span><br>
+      Gratuit : mensualité = montant ÷ durée, coût pris en charge par le magasin.<br>
+      Compensé : TAEG client 4,90 % (le magasin compense la différence).
+    </div>
+  </div>
+  <div class="panel preview"><div id="out" class="muted">L'ILV s'affiche ici…</div></div>
+</div>
+<script>
+function params() {
+  return new URLSearchParams({
+    desig: document.getElementById('desig').value,
+    prec: document.getElementById('prec').value,
+    montant: document.getElementById('montant').value,
+    offer: document.getElementById('offer').value,
+  });
+}
+async function gen() {
+  const out = document.getElementById('out');
+  out.textContent = 'Génération…';
+  try {
+    const r = await fetch('api/render?' + params().toString());
+    if (!r.ok) throw new Error('Erreur ' + r.status);
+    const b = await r.blob();
+    out.innerHTML = '<img src="' + URL.createObjectURL(b) + '" alt="ILV cuisine">';
+  } catch (e) { out.textContent = 'Erreur : ' + e.message; }
+}
+function dl() {
+  const q = params(); q.set('fmt', 'pdf');
+  window.open('api/render?' + q.toString(), '_blank');
+}
+window.addEventListener('DOMContentLoaded', gen);
+</script>
+</body>
+</html>
