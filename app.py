@@ -146,7 +146,7 @@ def _aspect(p):
     return px.width / px.height
 
 
-def render_cuisine(desig, precision, montant, offer_key):
+def render_cuisine(desig, precision, montant, offer_key, eco=0.0):
     c = calc_cuisine(offer_key, montant)
     o = CUISINE_OFFERS[offer_key]; d = o["duree"]
     doc = fitz.open(); W, H = 480, 800
@@ -163,8 +163,13 @@ def render_cuisine(desig, precision, montant, offer_key):
     p.insert_image(fitz.Rect(28, 24, 28 + bw, 24 + bh), filename=os.path.join(ASSETS, "bandeau.png"))
     T(28, 120, desig.upper(), 17)
     T(452 - _font.text_length(_e(montant) + " €", 17), 120, _e(montant) + " €", 17, RED)
+    next_y = 144
+    if eco and eco > 0:
+        eco_txt = f"dont {_e(eco)} € d'éco-participation"
+        T(452 - _font.text_length(eco_txt, 10.5), next_y, eco_txt, 10.5, GREY)
+        next_y += 18
     if precision:
-        T(28, 144, precision, 10.5, GREY)
+        T(28, next_y, precision, 10.5, GREY)
     # Mensualité (très gros, centré)
     mensu = c["mensu"]; mstr = f"{int(mensu)}"; cstr = "," + f"{int(round((mensu - int(mensu)) * 100)):02d}"
     S = 108; SC = 44
@@ -224,9 +229,13 @@ def api_render():
         montant = float(request.args.get("montant", 5000) or 5000)
     except ValueError:
         montant = 5000.0
+    try:
+        eco = float(request.args.get("eco", 0) or 0)
+    except ValueError:
+        eco = 0.0
     if offer not in CUISINE_OFFERS:
         return {"error": "offre inconnue"}, 400
-    doc = render_cuisine(desig, prec, montant, offer)
+    doc = render_cuisine(desig, prec, montant, offer, eco=eco)
     if fmt == "pdf":
         buf = io.BytesIO(doc.tobytes(garbage=4, deflate=True,
                                      deflate_images=True, deflate_fonts=True)); buf.seek(0)
