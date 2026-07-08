@@ -158,7 +158,8 @@ def render_cuisine(desig, precision, montant, offer_key, eco=0.0):
         tw.append(fitz.Point(x, y), s, font=_font, fontsize=sz)
         tw.write_text(p)
 
-    p.draw_rect(fitz.Rect(8, 8, W - 8, H - 8), color=(0.85, 0.85, 0.85), width=1)
+    TEAL = (0.0, 0.627, 0.690)
+    p.draw_rect(fitz.Rect(14, 14, W - 14, H - 14), color=TEAL, width=3.5, radius=0.02)
     bw = 215; bh = bw / _aspect(os.path.join(ASSETS, "bandeau.png"))
     p.insert_image(fitz.Rect(28, 24, 28 + bw, 24 + bh), filename=os.path.join(ASSETS, "bandeau.png"))
     T(28, 120, desig.upper(), 17)
