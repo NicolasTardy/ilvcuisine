@@ -28,8 +28,8 @@ CUISINE_OFFERS = {
 }
 TAEG_CLIENT_COMPENSE = 0.049  # 4,90 % (compensé : le magasin compense le reste)
 # Barème gratuit (gamme) : (taux débiteur TNC, TAEG) → détail du coût pris en charge
-GAMME_GRAT = {"10x_grat": (0.0443, 0.0452), "12x_grat": (0.0375, 0.03815)}
-DATE_CONDITIONS = "01/01/2026"
+GAMME_GRAT = {"10x_grat": (0.0499, 0.0512), "12x_grat": (0.0432, 0.0441)}  # MàJ 29/07/2026 (hausse T3, DTS)
+DATE_CONDITIONS = "29/07/2026"
 
 # ── Assurance facultative DIM (repris du barème EASY PLV) ──────────────────────
 ASSURANCE_DIM_BORNES = [
@@ -120,11 +120,10 @@ def mentions_cuisine(offer_key, montant, c):
           f"Annuel Effectif Global (TAEG) fixe de {c['taeg']} (taux débiteur fixe de {tdb}), vous remboursez "
           f"{d} mensualités de {_e(mensu)} €{hors} Montant total dû par l'emprunteur : {_e(total)} €{hors}")
     if gratuit:
-        tnc, taeg_f = GAMME_GRAT[offer_key]
-        nom_f = 12 * ((1 + taeg_f) ** (1 / 12) - 1)
-        rm = nom_f / 12; f = (1 + rm) ** d
+        tnc, taeg_f = GAMME_GRAT[offer_key]        # tnc = taux débiteur officiel (barème BNP)
+        rm = tnc / 12; f = (1 + rm) ** d
         interets_f = round((montant * rm * f / (f - 1)) * d - montant)
-        s += (f" Le coût du crédit (TAEG fixe : {_pct(taeg_f)}, taux débiteur fixe de {_pct(nom_f)} intérêts : "
+        s += (f" Le coût du crédit (TAEG fixe : {_pct(taeg_f)}, taux débiteur fixe de {_pct(tnc)} intérêts : "
               f"{interets_f} €) est pris en charge par votre magasin.")
     if d >= 12:
         ass = calculer_assurance(mensu, d)
