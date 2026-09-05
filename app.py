@@ -6,6 +6,7 @@ Design : reproduction de la PLV Cetelem « Payez à votre rythme ».
 """
 import io
 import os
+from datetime import date, datetime
 
 import fitz
 from flask import Flask, request, send_file, send_from_directory
@@ -20,6 +21,7 @@ PORT = int(os.environ.get("PORT", "8770"))
 CUISINE_OFFERS = {
     "10x_grat": {"label": "10X gratuit cuisine",  "fam": "gratuit",  "duree": 10, "min": 160,  "max": 25000},
     "12x_grat": {"label": "12X gratuit cuisine",  "fam": "gratuit",  "duree": 12, "min": 200,  "max": 25000},
+    "20x_grat": {"label": "20X gratuit cuisine",  "fam": "gratuit",  "duree": 20, "min": 3000, "max": 25000},
     "12x_comp": {"label": "12X compensé cuisine", "fam": "compense", "duree": 12, "min": 1000, "max": 25000},
     "24x_comp": {"label": "24X compensé cuisine", "fam": "compense", "duree": 24, "min": 1000, "max": 25000},
     "36x_comp": {"label": "36X compensé cuisine", "fam": "compense", "duree": 36, "min": 1000, "max": 25000},
@@ -28,8 +30,29 @@ CUISINE_OFFERS = {
 }
 TAEG_CLIENT_COMPENSE = 0.049  # 4,90 % (compensé : le magasin compense le reste)
 # Barème gratuit (gamme) : (taux débiteur TNC, TAEG) → détail du coût pris en charge
-GAMME_GRAT = {"10x_grat": (0.0499, 0.0512), "12x_grat": (0.0432, 0.0441)}  # MàJ 29/07/2026 (hausse T3, DTS)
+# 10x/12x : TAEG DTS. 20x promo : TAEG VAT 6,03 % (conforme au texte ML fourni).
+GAMME_GRAT = {"10x_grat": (0.0499, 0.0512), "12x_grat": (0.0432, 0.0441),
+              "20x_grat": (0.0587, 0.0603)}  # MàJ 29/07/2026 (hausse T3)
+# Offres dont le coût magasin est exprimé par la RETENUE (RV) : intérêts = montant × RV
+# (méthode du barème officiel BNP). Les autres offres gardent le calcul PMT historique.
+GRAT_RV = {"20x_grat": 0.0496}  # 20× gratuit : retenue 4,96 %
+# Offres à durée limitée : dates affichées sur l'ILV (bandeau) + dans les mentions.
+# "visible_from" = date d'ouverture de l'accès dans l'outil (avant, l'offre est
+# masquée côté interface ET refusée côté API). L'offre commence le 15/09 mais
+# l'accès s'ouvre 2 jours avant (préparation en magasin).
+PROMO_OFFERS = {"20x_grat": {"debut": "15/09/2026", "fin": "26/10/2026",
+                             "visible_from": "13/09/2026"}}
 DATE_CONDITIONS = "29/07/2026"
+
+
+def offer_available(offer_key, today=None):
+    """Une offre promo n'est accessible qu'à partir de sa date "visible_from".
+    Les offres hors PROMO_OFFERS sont toujours disponibles."""
+    pr = PROMO_OFFERS.get(offer_key)
+    if not pr or not pr.get("visible_from"):
+        return True
+    today = today or date.today()
+    return today >= datetime.strptime(pr["visible_from"], "%d/%m/%Y").date()
 
 # ── Assurance facultative DIM (repris du barème EASY PLV) ──────────────────────
 ASSURANCE_DIM_BORNES = [
@@ -87,14 +110,14 @@ def calc_cuisine(offer_key, montant):
 
 
 # ── Mentions légales (reproduction template PLV Excel B25-B37) ─────────────────
-_CETELEM = ("Sous réserve d'étude et d'acceptation du dossier par BNP Paribas Personal Finance. Cetelem est une "
-            "marque de BNP Paribas Personal Finance S.A au capital de 634 574 115 € - 542 097 902 RCS Paris - "
-            "Siège social : 1 bd Haussmann 75 009 Paris. N° Orias : 07 023 128 (www.orias.fr). Vous disposez "
-            "d'un droit de rétractation.")
-_BUT = ("Publicité diffusée par But International 722041860 RCS Meaux, 1 avenue Spinoza 77184 Emerainville "
-        "ORIAS 10055338 en qualité d'intermédiaire en opérations de banques immatriculé dans la catégorie "
-        "mandataire exclusif de BNP Paribas Personal Finance. Cet intermédiaire apporte son concours à la "
-        "réalisation d'opérations de crédit sans agir en qualité de prêteur.")
+_CETELEM = ("Sous réserve d'étude et d'acceptation de votre dossier par BNP Paribas Personal Finance. "
+            "Cetelem est une marque de l'établissement de crédit BNP Paribas Personal Finance, SA au capital "
+            "de 634 574 115 € - Siège social : 1, boulevard Haussmann 75009 Paris - 542 097 902 RCS Paris "
+            "(www.cetelem.fr). N° ORIAS : 07 023 128 (www.orias.fr). Vous disposez d'un droit de rétractation.")
+_BUT = ("Publicité diffusée par BUT INTERNATIONAL, 722 041 860 RCS Meaux - 1, avenue Spinoza 77184 "
+        "Emerainville - N° ORIAS : 10 055 338, en qualité d'intermédiaire en opérations de banques immatriculé "
+        "dans la catégorie mandataire exclusif de BNP Paribas Personal Finance. BUT INTERNATIONAL apporte son "
+        "concours à la réalisation d'opérations de crédit à la consommation sans agir en qualité de Prêteur.")
 
 
 def _e(v):
@@ -109,6 +132,25 @@ def mentions_cuisine(offer_key, montant, c):
     o = CUISINE_OFFERS[offer_key]
     d = o["duree"]; mn, mx = o["min"], o["max"]
     mensu = c["mensu"]; total = c["total"]; gratuit = (c["fam"] == "gratuit")
+
+    # Offres gratuites à retenue (RV) — coût magasin = montant × RV (barème BNP).
+    # Texte réglementaire spécifique (ex. 20× promo), sans assurance facultative.
+    if offer_key in GRAT_RV:
+        tnc, taeg_f = GAMME_GRAT[offer_key]
+        interets = round(montant * GRAT_RV[offer_key], 2)
+        pr = PROMO_OFFERS.get(offer_key)
+        promo = f"Offre valable du {pr['debut']} au {pr['fin']}. " if pr else ""
+        s = (f"Offre de crédit accessoire à une vente de {_e(mn)}€ à {_e(mx)}€ sur une durée de {d} mois, "
+             f"pour un achat de {_e(mn)}€ à {_e(mx)}€. Le coût du crédit est pris en charge par votre "
+             f"magasin. Taux Annuel Effectif Global fixe : 0%. {promo}"
+             f"Exemple pour un achat et un crédit accessoire à une vente de {_e(montant)}€ sur {d} mois, "
+             f"vous remboursez {d} mensualités de {_e(mensu)}€. "
+             f"Montant total dû (par l'emprunteur) : {_e(total)}€. "
+             f"Le coût du crédit (TAEG fixe : {_pct(taeg_f)}, taux débiteur fixe de {_pct(tnc)}, "
+             f"intérêts : {_e(interets)}€) est pris en charge par votre magasin. "
+             f"Conditions au {DATE_CONDITIONS} ")
+        return s + _CETELEM + " " + _BUT
+
     hors = ", hors assurance facultative." if d >= 12 else "."
     tdb = "0,00%" if gratuit else _pct(12 * ((1 + TAEG_CLIENT_COMPENSE) ** (1 / 12) - 1))
 
@@ -170,6 +212,16 @@ def render_cuisine(desig, precision, montant, offer_key, eco=0.0):
         next_y += 18
     if precision:
         T(28, next_y, precision, 10.5, GREY)
+    # Bandeau promo (offres à durée limitée) — dates bien visibles
+    if offer_key in PROMO_OFFERS:
+        pr = PROMO_OFFERS[offer_key]
+        band = fitz.Rect(28, 170, W - 28, 204)
+        p.draw_rect(band, color=RED, fill=RED, radius=0.28)
+        ptxt = f"OFFRE VALABLE DU {pr['debut']} AU {pr['fin']}"
+        psz = 14.5
+        while _font.text_length(ptxt, psz) > (W - 72) and psz > 8:
+            psz -= 0.5
+        T((W - _font.text_length(ptxt, psz)) / 2, 193, ptxt, psz, (1, 1, 1))
     # Mensualité (très gros, centré)
     mensu = c["mensu"]; mstr = f"{int(mensu)}"; cstr = "," + f"{int(round((mensu - int(mensu)) * 100)):02d}"
     S = 108; SC = 44
@@ -235,6 +287,9 @@ def api_render():
         eco = 0.0
     if offer not in CUISINE_OFFERS:
         return {"error": "offre inconnue"}, 400
+    if not offer_available(offer):
+        pr = PROMO_OFFERS.get(offer, {})
+        return {"error": f"Offre non disponible avant le {pr.get('visible_from', '')}"}, 403
     doc = render_cuisine(desig, prec, montant, offer, eco=eco)
     if fmt == "pdf":
         buf = io.BytesIO(doc.tobytes(garbage=4, deflate=True,
