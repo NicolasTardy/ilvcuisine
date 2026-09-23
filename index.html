@@ -21,6 +21,9 @@
   .preview { flex:1 1 420px; min-height:300px; display:flex; align-items:flex-start; justify-content:center; }
   .preview img { max-width:540px; width:100%; border-radius:10px; box-shadow:0 8px 40px rgba(0,0,0,.55); background:#fff; }
   .hint { font-size:11px; color:#6b727a; margin-top:14px; line-height:1.5; }
+  /* Mention figée : affichée mais non modifiable (source = /api/health) */
+  .fixed-note { padding:9px 10px; border-radius:7px; border:1px dashed var(--line);
+                background:#11141a; color:#9aa3ab; font-size:13px; line-height:1.4; }
   .muted { color:#8a9199; }
 </style>
 </head>
@@ -29,9 +32,9 @@
 <div class="wrap">
   <div class="panel form">
     <label>Désignation du projet</label>
-    <input id="desig" value="CUISINE ÉQUIPÉE MODÈLE OSLO">
-    <label>Précision (optionnel)</label>
-    <input id="prec" value="Ensemble cuisine + électroménager intégré">
+    <input id="desig" value="CUISINE + MODELE">
+    <label>Mention imprimée (figée)</label>
+    <div id="prec-fixe" class="fixed-note">…</div>
     <label>Montant du projet (€)</label>
     <input id="montant" type="number" min="0" step="10" value="5000">
     <label>dont éco-participation (€)</label>
@@ -74,7 +77,7 @@
 function params() {
   return new URLSearchParams({
     desig: document.getElementById('desig').value,
-    prec: document.getElementById('prec').value,
+    // pas de "prec" : la mention est figée côté serveur (PRECISION_FIXE)
     montant: document.getElementById('montant').value,
     eco: document.getElementById('eco').value || '0',
     offer: document.getElementById('offer').value,
@@ -94,7 +97,17 @@ function dl() {
   const q = params(); q.set('fmt', 'pdf');
   window.open('api/render?' + q.toString(), '_blank');
 }
-window.addEventListener('DOMContentLoaded', gen);
+// La mention figée vient du serveur : une seule source de vérité, pas de texte
+// dupliqué dans la page qu'on oublierait de mettre à jour.
+async function loadPrecision() {
+  const el = document.getElementById('prec-fixe');
+  try {
+    const r = await fetch('api/health');
+    const j = await r.json();
+    el.textContent = j.precision || '—';
+  } catch (e) { el.textContent = '—'; }
+}
+window.addEventListener('DOMContentLoaded', () => { loadPrecision(); gen(); });
 </script>
 </body>
 </html>

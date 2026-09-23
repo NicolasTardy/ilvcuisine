@@ -43,6 +43,9 @@ GRAT_RV = {"20x_grat": 0.0496}  # 20× gratuit : retenue 4,96 %
 PROMO_OFFERS = {"20x_grat": {"debut": "15/09/2026", "fin": "26/10/2026",
                              "visible_from": "13/09/2026"}}
 DATE_CONDITIONS = "29/07/2026"
+# Mention figée sous la désignation : précise ce que le montant affiché EXCLUT.
+# Imprimée systématiquement sur toutes les ILV cuisine (non modifiable côté outil).
+PRECISION_FIXE = "Hors électroménagers, sanitaires, accessoires et services"
 
 
 def offer_available(offer_key, today=None):
@@ -188,6 +191,10 @@ def _aspect(p):
 
 
 def render_cuisine(desig, precision, montant, offer_key, eco=0.0):
+    # La ligne de précision est FIGÉE : elle indique ce que le montant affiché ne
+    # couvre pas. Elle ne doit pas pouvoir être modifiée ni omise (le paramètre
+    # `prec` de l'API est donc ignoré), sous peine d'imprimer une info trompeuse.
+    precision = PRECISION_FIXE
     c = calc_cuisine(offer_key, montant)
     o = CUISINE_OFFERS[offer_key]; d = o["duree"]
     doc = fitz.open(); W, H = 480, 800
@@ -268,7 +275,7 @@ def index():
 
 @app.get("/api/health")
 def health():
-    return {"ok": True, "offers": list(CUISINE_OFFERS)}
+    return {"ok": True, "offers": list(CUISINE_OFFERS), "precision": PRECISION_FIXE}
 
 
 @app.get("/api/render")

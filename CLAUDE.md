@@ -41,6 +41,11 @@ Tous les taux sont regroupés en haut de `app.py`. Points à modifier selon le c
 - **Date des conditions** → `DATE_CONDITIONS` (ex. `"01/01/2026"`). **À changer à
   chaque nouveau barème** — elle apparaît dans les mentions (« Conditions en vigueur
   au … »).
+- **Mention sous la désignation** → `PRECISION_FIXE` (« Hors électroménagers,
+  sanitaires, accessoires et services »). Elle est **figée** : `render_cuisine`
+  ignore le paramètre `prec` de l'API, et l'interface l'affiche en lecture seule
+  (elle la lit depuis `/api/health`, donc **ne jamais la recopier en dur dans
+  `index.html`** — une seule source de vérité). La changer ici la change partout.
 - **Offres proposées / durées / montants min-max** → dictionnaire `CUISINE_OFFERS`.
   Chaque clé = une offre (`duree` en mois, `min`/`max` = bornes du montant finançable,
   `fam` = `"gratuit"` ou `"compense"`). Ajouter/retirer une offre ici, puis l'ajouter
